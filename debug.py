@@ -6,6 +6,7 @@ np.random.seed(42)
 problem = tsplib95.load("ca4663.tsp")
 nodes = problem.node_coords
 
+np.random.seed(42)
 class TSPSolver:
     def solve(self,nodes):
         self.nodes = nodes
@@ -32,29 +33,33 @@ class TSPSolver:
         cooling_rate = 100
         non_improov = 0
         max_non_improov = 10
+        max_iterations = 10
 
-        temperature = 6000
+        temperature = 3000
         n = len(current_path)
+        i = 0
 
-        while non_improov < max_non_improov and temperature > 0:
+        while non_improov < max_non_improov and temperature > 1 and i < max_iterations:
             i,j = np.random.choice(range(1,n-1),size=2,replace=False)
             bounds = (i,j) if i<j else (j,i)
             swap_cost = self.swap_cost(current_path,bounds)
 
+            # print(self.check_eval(current_eval,current_path, swap_cost))
             if swap_cost < 0:
-                current_path = self.swap_n_reverse(current_path, (i,j))
+                current_path = self.swap_n_reverse(current_path, bounds)
                 current_eval += swap_cost
             else:
                 non_improov += 1
-                accepting_prob = np.e**(swap_cost/temperature)
+                accepting_prob = np.exp(-swap_cost/temperature)
                 if np.random.uniform() < accepting_prob:
-                    current_path = self.swap_n_reverse(current_path, (i,j))
+                    current_path = self.swap_n_reverse(current_path, bounds)
                     current_eval += swap_cost
                 
             temperature -= cooling_rate
+            print(self.check_eval(current_eval,current_path, swap_cost, bounds))
+            i += 1
 
     
-        print(self.check_eval(current_eval,current_path, swap_cost))
         print(f"initial cost:{initial_eval}; current cost: {current_eval}; {current_eval/initial_eval}% \n ({i,j})")
 
     def node_distance(self,a,b):
@@ -76,9 +81,10 @@ class TSPSolver:
         return new_path
 
 
-    def check_eval(self, current_eval,current_path, swap_cost):
+    def check_eval(self, current_eval,current_path, swap_cost, bounds):
         calculated_cost = self.cost(current_path)["total_cost"]
         diff = calculated_cost - current_eval + 0.0000001
+        print(f"i,j: {bounds}")
         print(f"\n swap/diff: {swap_cost/diff} \n eval: {current_eval}; calculated: {calculated_cost}; diff: {diff} diff% {current_eval/calculated_cost}")
 
         return ((calculated_cost - current_eval)**2)**0.5 < 100
@@ -90,20 +96,21 @@ class TSPSolver:
         n3,n4 = path[j-1], path[j]
 
         d = self.node_distance
-        cost = (d(n1,n2) - d(n1,n3)) + (d(n3,n4) - d(n2,n4))
-        test_path = np.copy(path[i-1:j+1])
-        calc_cost_before = self.cost(test_path)["total_cost"]
-        test_path[1:-1] = test_path[1:-1][::-1]
-        calc_cost_after = self.cost(test_path)["total_cost"]
-        calc_cost = calc_cost_before - calc_cost_after
+        cost = - ((d(n1,n2) - d(n1,n3)) + (d(n3,n4) - d(n2,n4)))
+
+        # test_path = np.copy(path[i-1:j+1])
+        # calc_cost_before = self.cost(test_path)["total_cost"]
+        # test_path[1:-1] = test_path[1:-1][::-1]
+        # calc_cost_after = self.cost(test_path)["total_cost"]
+        # calc_cost = calc_cost_before - calc_cost_after
 
         # curr_cost = d(path[i-1],path[i]) + d(path[j],path[j+1])
         # new_cost = d(path[i-1],path[j]) + d(path[i],path[j+1])
         # swap_cost = new_cost - curr_cost
 
-        print(f"swap_cost: {cost}; cost_calc: {calc_cost}; %{cost/calc_cost}")
+        # print(f"swap_cost: {cost}; cost_calc: {calc_cost}; %{cost/calc_cost}")
 
-        return calc_cost
+        return cost
             
   
     def cost(self, path):
